@@ -181,6 +181,36 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .spf{height:100%;background:var(--c);}
 #mm{width:70px;height:70px;}
 #mmC{width:70px;height:70px;border:1px solid rgba(255,255,255,.2);border-radius:5px;}
+/* Minimap bottom-center overlay */
+#mmWrap{
+  position:absolute;bottom:clamp(118px,18vw,160px);left:50%;transform:translateX(-50%);
+  display:flex;flex-direction:column;align-items:center;gap:3px;pointer-events:all;cursor:pointer;
+  transition:bottom .3s,left .3s,transform .3s;
+}
+#mmWrap.big{
+  bottom:50%!important;left:50%!important;
+  transform:translate(-50%,50%)!important;
+  z-index:40;
+}
+#mmWrap canvas{
+  border:1px solid rgba(0,255,204,.3);border-radius:6px;
+  transition:width .28s,height .28s;
+  display:block;
+}
+#mmWrap.big canvas{width:280px!important;height:280px!important;border-color:var(--c);border-radius:10px;box-shadow:0 0 28px rgba(0,255,204,.2);}
+#mmLabel{font-size:7px;color:rgba(0,255,204,.45);letter-spacing:2px;}
+/* weapon slots HUD */
+#wSlots{
+  position:absolute;bottom:clamp(116px,17vw,155px);left:50%;transform:translateX(-50%);
+  display:flex;gap:5px;pointer-events:none;
+}
+.wslot{
+  width:38px;height:38px;border:1px solid rgba(255,255,255,.12);border-radius:6px;
+  background:rgba(0,0,0,.6);display:flex;flex-direction:column;align-items:center;justify-content:center;
+  font-size:16px;transition:border-color .15s,background .15s;
+}
+.wslot.active{border-color:var(--c);background:rgba(0,255,204,.1);box-shadow:0 0 6px rgba(0,255,204,.2);}
+.wslot-num{font-size:7px;color:#334;}
 .jbl{font-size:7px;color:#0ac;letter-spacing:1px;text-align:center;margin-top:2px;margin-bottom:1px;}
 .jbt{height:2px;background:rgba(0,204,255,.08);border-radius:1px;overflow:hidden;width:84px;}
 .jbf{height:100%;background:#0cf;}
@@ -334,7 +364,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
   </div>
   <div id="sMid">
    <div><div class="spl">SPRINT</div><div class="spt"><div class="spf" id="spF" style="width:100%"></div></div></div>
-   <div id="mm"><canvas id="mmC" width="140" height="140" style="width:70px;height:70px;display:block;border:1px solid rgba(255,255,255,.2);border-radius:5px;"></canvas></div>
+   <div style="height:10px"></div>
    <div><div class="jbl">JUMP</div><div class="jbt"><div class="jbf" id="jbF" style="width:100%"></div></div></div>
   </div>
   <div class="ablk">
@@ -343,6 +373,13 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
    <div class="amr">/ <span id="hRs">45</span></div>
   </div>
  </div>
+ <!-- Minimap bottom-center -->
+ <div id="mmWrap" title="M = كبّر الخريطة">
+  <div id="mmLabel">MAP [M]</div>
+  <canvas id="mmC" width="140" height="140" style="width:70px;height:70px;display:block;"></canvas>
+ </div>
+ <!-- Weapon slots -->
+ <div id="wSlots"></div>
  <div id="pop"></div>
  <div id="pkMsg"></div>
 </div>
@@ -547,25 +584,48 @@ const LEVELS=[
 ];
 
 // perm:true = permanent (main shop), perm:false = temporary (in-game shop only)
+// type:'gun' | type:'melee'
 const WPNS=[
-  // ── PERMANENT (main shop, expensive) ──
-  {id:'pistol',  name:'PISTOL',   ico:'🔫',price:0,    perm:true, dmg:30, rpm:180,mag:15,res:45, rldT:1.2,auto:false,dB:35,sB:60,desc_ar:'مسدس الأساس',         desc_en:'Basic sidearm'},
-  {id:'smg',     name:'SMG',      ico:'🔩',price:1500, perm:true, dmg:18, rpm:700,mag:30,res:90, rldT:1.8,auto:true, dB:22,sB:90,desc_ar:'رشاش خفيف سريع',      desc_en:'Fast submachine gun'},
-  {id:'shotgun', name:'SHOTGUN',  ico:'💥',price:2000, perm:true, dmg:90, rpm:60, mag:8, res:24, rldT:2.2,auto:false,dB:90,sB:28,desc_ar:'ضخم — فعّال قريباً', desc_en:'Massive close range'},
-  {id:'rifle',   name:'RIFLE',    ico:'🎯',price:2800, perm:true, dmg:50, rpm:400,mag:20,res:60, rldT:2.0,auto:true, dB:62,sB:55,desc_ar:'بندقية دقيقة وقوية',  desc_en:'Accurate assault rifle'},
-  {id:'sniper',  name:'SNIPER',   ico:'🔭',price:3500, perm:true, dmg:160,rpm:28, mag:5, res:15, rldT:3.0,auto:false,dB:100,sB:12,desc_ar:'قنص — قتل بطلقة',   desc_en:'One shot kill'},
-  {id:'minigun', name:'MINIGUN',  ico:'🌀',price:4500, perm:true, dmg:22, rpm:900,mag:60,res:120,rldT:2.5,auto:true, dB:28,sB:100,desc_ar:'مدفع رشاش ثقيل',    desc_en:'Heavy minigun'},
-  {id:'plasma',  name:'PLASMA',   ico:'🔵',price:5500, perm:true, dmg:75, rpm:240,mag:18,res:54, rldT:2.2,auto:true, dB:80,sB:65,desc_ar:'مسدس بلازما',         desc_en:'Plasma pistol'},
-  {id:'rocket',  name:'ROCKET',   ico:'🚀',price:7000, perm:true, dmg:220,rpm:18, mag:3, res:9,  rldT:3.5,auto:false,dB:100,sB:9, desc_ar:'قاذف صواريخ',        desc_en:'Rocket launcher'},
-  // ── TEMPORARY (in-game shop, cheap per session) ──
-  {id:'tmp_uzi',    name:'UZI',      ico:'⚡',price:80,  perm:false,dmg:14, rpm:800,mag:32,res:96, rldT:1.6,auto:true, dB:18,sB:95,desc_ar:'أوزي سريع جداً',      desc_en:'Very fast UZI'},
-  {id:'tmp_deagle', name:'DEAGLE',   ico:'💢',price:120, perm:false,dmg:80, rpm:100,mag:7, res:21, rldT:1.8,auto:false,dB:82,sB:22,desc_ar:'ديزرت إيغل قوي',     desc_en:'Powerful Desert Eagle'},
-  {id:'tmp_ak',     name:'AK-47',    ico:'🔥',price:150, perm:false,dmg:45, rpm:450,mag:30,res:90, rldT:2.0,auto:true, dB:55,sB:60,desc_ar:'AK-47 كلاسيكي',     desc_en:'Classic AK-47'},
-  {id:'tmp_mp5',    name:'MP5',      ico:'🎪',price:100, perm:false,dmg:20, rpm:650,mag:25,res:75, rldT:1.7,auto:true, dB:25,sB:85,desc_ar:'MP5 متوازن',          desc_en:'Balanced MP5'},
-  {id:'tmp_m4',     name:'M4A1',     ico:'🛡',price:180, perm:false,dmg:48, rpm:380,mag:25,res:75, rldT:2.1,auto:true, dB:60,sB:52,desc_ar:'M4A1 عسكري',         desc_en:'Military M4A1'},
-  {id:'tmp_double', name:'DBL SHOT', ico:'🎭',price:200, perm:false,dmg:100,rpm:50, mag:6, res:18, rldT:2.4,auto:false,dB:95,sB:20,desc_ar:'مزدوج الطلق',        desc_en:'Double barrel'},
-  {id:'tmp_lmg',    name:'LMG',      ico:'🏋',price:250, perm:false,dmg:28, rpm:750,mag:50,res:100,rldT:3.0,auto:true, dB:35,sB:88,desc_ar:'رشاش ثقيل مؤقت',    desc_en:'Temp heavy LMG'},
-  {id:'tmp_burst',  name:'BURST',    ico:'💫',price:130, perm:false,dmg:38, rpm:280,mag:18,res:54, rldT:1.9,auto:false,dB:46,sB:48,desc_ar:'طلق ثلاثي',          desc_en:'3-round burst'},
+  // ── GUNS PERMANENT ──
+  {id:'pistol',  name:'PISTOL',   ico:'🔫',price:0,    perm:true, type:'gun',   size:'big',  dmg:30, rpm:180,mag:15,res:45, rldT:1.2,auto:false,dB:35,sB:60,desc_ar:'مسدس الأساس',         desc_en:'Basic sidearm'},
+  // 3 SMALL PERM PISTOLS
+  {id:'p_micro', name:'MICRO',    ico:'🔫',price:600,  perm:true, type:'gun',   size:'small',dmg:22, rpm:320,mag:12,res:48, rldT:0.9,auto:false,dB:22,sB:80,desc_ar:'مسدس مايكرو صغير جداً',desc_en:'Tiny micro pistol'},
+  {id:'p_compact',name:'COMPACT', ico:'🔫',price:900,  perm:true, type:'gun',   size:'small',dmg:28, rpm:260,mag:10,res:40, rldT:1.0,auto:false,dB:28,sB:74,desc_ar:'مسدس كومباكت خفيف', desc_en:'Compact lightweight'},
+  {id:'p_sub',   name:'SUB-COMPACT',ico:'🔫',price:1200,perm:true,type:'gun',   size:'small',dmg:32, rpm:230,mag:8, res:32, rldT:0.95,auto:false,dB:32,sB:70,desc_ar:'مسدس صغير متوازن', desc_en:'Small balanced pistol'},
+  {id:'smg',     name:'SMG',      ico:'🔩',price:1500, perm:true, type:'gun',   size:'big',  dmg:18, rpm:700,mag:30,res:90, rldT:1.8,auto:true, dB:22,sB:90,desc_ar:'رشاش خفيف سريع',      desc_en:'Fast submachine gun'},
+  {id:'shotgun', name:'SHOTGUN',  ico:'💥',price:2000, perm:true, type:'gun',   size:'big',  dmg:90, rpm:60, mag:8, res:24, rldT:2.2,auto:false,dB:90,sB:28,desc_ar:'ضخم فعّال قريباً',    desc_en:'Massive close range'},
+  {id:'rifle',   name:'RIFLE',    ico:'🎯',price:2800, perm:true, type:'gun',   size:'big',  dmg:50, rpm:400,mag:20,res:60, rldT:2.0,auto:true, dB:62,sB:55,desc_ar:'بندقية دقيقة وقوية',  desc_en:'Accurate assault rifle'},
+  {id:'sniper',  name:'SNIPER',   ico:'🔭',price:3500, perm:true, type:'gun',   size:'big',  dmg:160,rpm:28, mag:5, res:15, rldT:3.0,auto:false,dB:100,sB:12,desc_ar:'قنص — قتل بطلقة',   desc_en:'One shot kill'},
+  {id:'minigun', name:'MINIGUN',  ico:'🌀',price:4500, perm:true, type:'gun',   size:'big',  dmg:22, rpm:900,mag:60,res:120,rldT:2.5,auto:true, dB:28,sB:100,desc_ar:'مدفع رشاش ثقيل',    desc_en:'Heavy minigun'},
+  {id:'plasma',  name:'PLASMA',   ico:'🔵',price:5500, perm:true, type:'gun',   size:'big',  dmg:75, rpm:240,mag:18,res:54, rldT:2.2,auto:true, dB:80,sB:65,desc_ar:'مسدس بلازما',         desc_en:'Plasma pistol'},
+  {id:'rocket',  name:'ROCKET',   ico:'🚀',price:7000, perm:true, type:'gun',   size:'big',  dmg:220,rpm:18, mag:3, res:9,  rldT:3.5,auto:false,dB:100,sB:9, desc_ar:'قاذف صواريخ',        desc_en:'Rocket launcher'},
+  // ── GUNS TEMPORARY ──
+  // 3 SMALL TEMP PISTOLS
+  {id:'tp_glock', name:'GLOCK',   ico:'🔫',price:40,  perm:false,type:'gun',   size:'small',dmg:20, rpm:350,mag:17,res:51, rldT:0.9,auto:false,dB:20,sB:82,desc_ar:'جلوك مؤقت رخيص',     desc_en:'Cheap temp Glock'},
+  {id:'tp_p99',   name:'P99',     ico:'🔫',price:55,  perm:false,type:'gun',   size:'small',dmg:25, rpm:290,mag:15,res:45, rldT:1.0,auto:false,dB:25,sB:76,desc_ar:'P99 مؤقت',            desc_en:'Temp P99 pistol'},
+  {id:'tp_beretta',name:'BERETTA',ico:'🔫',price:70,  perm:false,type:'gun',   size:'small',dmg:30, rpm:240,mag:12,res:36, rldT:1.05,auto:false,dB:30,sB:72,desc_ar:'بيريتا مؤقتة',       desc_en:'Temp Beretta'},
+  {id:'tmp_uzi',    name:'UZI',      ico:'⚡',price:80,  perm:false,type:'gun',   size:'big',  dmg:14, rpm:800,mag:32,res:96, rldT:1.6,auto:true, dB:18,sB:95,desc_ar:'أوزي سريع جداً',    desc_en:'Very fast UZI'},
+  {id:'tmp_deagle', name:'DEAGLE',   ico:'💢',price:120, perm:false,type:'gun',   size:'big',  dmg:80, rpm:100,mag:7, res:21, rldT:1.8,auto:false,dB:82,sB:22,desc_ar:'ديزرت إيغل قوي',   desc_en:'Powerful Desert Eagle'},
+  {id:'tmp_ak',     name:'AK-47',    ico:'🔥',price:150, perm:false,type:'gun',   size:'big',  dmg:45, rpm:450,mag:30,res:90, rldT:2.0,auto:true, dB:55,sB:60,desc_ar:'AK-47 كلاسيكي',   desc_en:'Classic AK-47'},
+  {id:'tmp_mp5',    name:'MP5',      ico:'🎪',price:100, perm:false,type:'gun',   size:'big',  dmg:20, rpm:650,mag:25,res:75, rldT:1.7,auto:true, dB:25,sB:85,desc_ar:'MP5 متوازن',        desc_en:'Balanced MP5'},
+  {id:'tmp_m4',     name:'M4A1',     ico:'🛡',price:180, perm:false,type:'gun',   size:'big',  dmg:48, rpm:380,mag:25,res:75, rldT:2.1,auto:true, dB:60,sB:52,desc_ar:'M4A1 عسكري',       desc_en:'Military M4A1'},
+  {id:'tmp_double', name:'DBL SHOT', ico:'🎭',price:200, perm:false,type:'gun',   size:'big',  dmg:100,rpm:50, mag:6, res:18, rldT:2.4,auto:false,dB:95,sB:20,desc_ar:'مزدوج الطلق',      desc_en:'Double barrel'},
+  {id:'tmp_lmg',    name:'LMG',      ico:'🏋',price:250, perm:false,type:'gun',   size:'big',  dmg:28, rpm:750,mag:50,res:100,rldT:3.0,auto:true, dB:35,sB:88,desc_ar:'رشاش ثقيل مؤقت',  desc_en:'Temp heavy LMG'},
+  {id:'tmp_burst',  name:'BURST',    ico:'💫',price:130, perm:false,type:'gun',   size:'big',  dmg:38, rpm:280,mag:18,res:54, rldT:1.9,auto:false,dB:46,sB:48,desc_ar:'طلق ثلاثي',        desc_en:'3-round burst'},
+  // ── MELEE PERMANENT (expensive, keep forever) ──
+  {id:'m_knife',   name:'KNIFE',      ico:'🔪',price:800,  perm:true, type:'melee',dmg:55, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:55,sB:90,meleeRange:1.8,meleeCd:0.45,desc_ar:'سكين قتال سريع',       desc_en:'Fast combat knife'},
+  {id:'m_dagger',  name:'DAGGER',     ico:'⚔',price:1200, perm:true, type:'melee',dmg:70, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:70,sB:80,meleeRange:1.8,meleeCd:0.55,desc_ar:'خنجر حاد جداً',          desc_en:'Sharp dagger'},
+  {id:'m_machete', name:'MACHETE',    ico:'🗡',price:1800, perm:true, type:'melee',dmg:90, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:88,sB:70,meleeRange:2.2,meleeCd:0.7, desc_ar:'ماشيتي ضرباته قوية',    desc_en:'Heavy machete'},
+  {id:'m_sword',   name:'SWORD',      ico:'🗡',price:2500, perm:true, type:'melee',dmg:110,rpm:0,mag:0,res:0,rldT:0,auto:false,dB:100,sB:65,meleeRange:2.5,meleeCd:0.8,desc_ar:'سيف طويل المدى',         desc_en:'Long range sword'},
+  {id:'m_katana',  name:'KATANA',     ico:'⚡',price:3200, perm:true, type:'melee',dmg:130,rpm:0,mag:0,res:0,rldT:0,auto:false,dB:100,sB:75,meleeRange:2.6,meleeCd:0.6,desc_ar:'كاتانا — سريعة وقاتلة', desc_en:'Fast lethal katana'},
+  {id:'m_axe',     name:'BATTLE AXE', ico:'🪓',price:2000, perm:true, type:'melee',dmg:150,rpm:0,mag:0,res:0,rldT:0,auto:false,dB:100,sB:45,meleeRange:2.3,meleeCd:1.1,desc_ar:'فأس معركة — ضرر ضخم',  desc_en:'Huge damage battle axe'},
+  // ── MELEE TEMPORARY (cheap, session only) ──
+  {id:'tm_flick',  name:'FLICK KNIFE',ico:'✂',price:60,  perm:false,type:'melee',dmg:40, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:40,sB:92,meleeRange:1.6,meleeCd:0.38,desc_ar:'سكين مرنة سريعة',       desc_en:'Quick flick knife'},
+  {id:'tm_boot',   name:'BOOT KNIFE', ico:'🔪',price:50,  perm:false,type:'melee',dmg:35, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:35,sB:95,meleeRange:1.5,meleeCd:0.35,desc_ar:'سكين الحذاء الخفية',    desc_en:'Hidden boot knife'},
+  {id:'tm_bowie',  name:'BOWIE',      ico:'⚔',price:90,  perm:false,type:'melee',dmg:60, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:60,sB:78,meleeRange:2.0,meleeCd:0.55,desc_ar:'بوي كنايف متوسط',        desc_en:'Medium Bowie knife'},
+  {id:'tm_tanto',  name:'TANTO',      ico:'🗡',price:110, perm:false,type:'melee',dmg:75, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:74,sB:82,meleeRange:1.9,meleeCd:0.5, desc_ar:'تانتو ياباني دقيق',      desc_en:'Precise Japanese tanto'},
+  {id:'tm_cleaver',name:'CLEAVER',    ico:'🪓',price:140, perm:false,type:'melee',dmg:100,rpm:0,mag:0,res:0,rldT:0,auto:false,dB:98,sB:55,meleeRange:2.1,meleeCd:0.85,desc_ar:'ساطور اللحام القوي',     desc_en:'Powerful meat cleaver'},
+  {id:'tm_estoc',  name:'ESTOC',      ico:'⚡',price:160, perm:false,type:'melee',dmg:90, rpm:0,mag:0,res:0,rldT:0,auto:false,dB:88,sB:70,meleeRange:2.8,meleeCd:0.65,desc_ar:'إستوك — مدى طويل',       desc_en:'Long reach estoc sword'},
 ];
 
 function getWpn(id){return WPNS.find(w=>w.id===id)||WPNS[0];}
@@ -826,10 +886,13 @@ function fireBullet(spread=.02){
   scene.add(b);bullets.push({mesh:b,vel:dir.clone().multiplyScalar(50),alive:true,life:2,dmg:CW.dmg});
 }
 function shoot(){
+  if(CW.type==='melee'){doMelee();return;}
   const now=performance.now();
   if(now-lastShot<60000/CW.rpm)return;
   if(ammo<=0||reloading){if(ammo<=0)startReload();return;}
-  lastShot=now;ammo--;updateAmmoHUD();sfx('shoot');
+  lastShot=now;ammo--;
+  const _sl=loadout[activeSlot];if(_sl)_sl.ammo=ammo;
+  updateAmmoHUD();sfx('shoot');
   muzzleM.material.opacity=1;muzzleL.intensity=3;
   setTimeout(()=>{muzzleM.material.opacity=0;muzzleL.intensity=0;},50);
   gunG.position.z=.1;gunG.rotation.x=.05;
@@ -838,9 +901,13 @@ function shoot(){
   if(ammo===0)startReload();
 }
 function startReload(){
-  if(reloading||ammo===CW.mag||reserve<=0)return;
+  if(CW.type==='melee'||reloading||ammo===CW.mag||reserve<=0)return;
   reloading=true;$('amD').innerHTML=`<span class="rlt">${t('reloading')}</span>`;sfx('rld');
-  setTimeout(()=>{const n=Math.min(CW.mag-ammo,reserve);ammo+=n;reserve-=n;reloading=false;updateAmmoHUD();},CW.rldT*1000);
+  setTimeout(()=>{
+    const n=Math.min(CW.mag-ammo,reserve);ammo+=n;reserve-=n;reloading=false;
+    const slot=loadout[activeSlot];if(slot){slot.ammo=ammo;slot.reserve=reserve;}
+    updateAmmoHUD();
+  },CW.rldT*1000);
 }
 
 // ═══════════════════════════════
@@ -877,29 +944,66 @@ function aiEnemy(e,dt,tt){
   const dx=cam.x-e.g.position.x,dz=cam.z-e.g.position.z;
   const dist=Math.sqrt(dx*dx+dz*dz);
   const toP=new THREE.Vector3(dx,0,dz).normalize();
+
+  // ── Difficulty presets ──
+  // easy:  slow, predictable, only chase
+  // medium: standard state machine
+  // hard:  fast, smart, flank + group behavior
+  const D={
+    easy:  {closeR:4, farR:12, stateW:{close:['chase'],  mid:['chase'],         far:['chase']},         stateT:[1.2,2.0],spMult:0.75,atkRate:1.6,sightR:18},
+    medium:{closeR:5, farR:14, stateW:{close:['strafe','charge'],mid:['chase','flank'],far:['chase']},   stateT:[0.5,1.5],spMult:1.0, atkRate:0.9,sightR:30},
+    hard:  {closeR:6, farR:18, stateW:{close:['strafe','charge','charge'],mid:['flank','charge','chase'],far:['chase','flank']},stateT:[0.3,0.9],spMult:1.35,atkRate:0.45,sightR:60},
+  }[diff]||{closeR:5,farR:14,stateW:{close:['strafe','charge'],mid:['chase','flank'],far:['chase']},stateT:[0.5,1.5],spMult:1.0,atkRate:0.9,sightR:30};
+
+  // Only act if player in sight range (easy enemies are dumber)
+  if(dist>D.sightR){e.stateT=0.1;return;}
+
   e.stateT-=dt;
   if(e.stateT<=0){
-    const r=Math.random();
-    if(dist<5){e.state=r>.4?'strafe':'charge';e.strafeDir=Math.random()>.5?1:-1;e.stateT=.5+Math.random()*.7;}
-    else if(dist<14){e.state=r>.35?'chase':'flank';e.stateT=.9+Math.random()*1.2;}
-    else{e.state='chase';e.stateT=1.8+Math.random()*1.5;}
-    if(e.boss&&e.hp<e.maxHp*.3){e.state=Math.random()>.55?'retreat':'charge';e.stateT=.7+Math.random();}
+    const zone=dist<D.closeR?'close':dist<D.farR?'mid':'far';
+    const opts=D.stateW[zone];
+    e.state=opts[Math.floor(Math.random()*opts.length)];
+    e.strafeDir=Math.random()>.5?1:-1;
+    e.stateT=D.stateT[0]+Math.random()*(D.stateT[1]-D.stateT[0]);
+    // Boss special: retreat when low HP
+    if(e.boss&&e.hp<e.maxHp*.3){
+      e.state=diff==='easy'?'chase':Math.random()>.45?'retreat':'charge';
+      e.stateT=0.6+Math.random()*.8;
+    }
+    // Hard: group flanking – if another enemy is already chasing, this one flanks
+    if(diff==='hard'&&!e.boss&&zone==='mid'){
+      const chasers=enemies.filter(x=>x.alive&&x!==e&&x.state==='chase').length;
+      if(chasers>=2) e.state='flank';
+    }
   }
+
+  const sp=e.speed*D.spMult;
   let np;
   const lim=LEVELS[curLvl].MAP/2-2;
-  if(e.state==='chase')np=e.g.position.clone().addScaledVector(toP,e.speed*(dist<8?1.4:1)*dt);
-  else if(e.state==='charge')np=e.g.position.clone().addScaledVector(toP,e.speed*2.2*dt);
-  else if(e.state==='strafe'){const p=new THREE.Vector3(-toP.z,0,toP.x).multiplyScalar(e.strafeDir);np=e.g.position.clone().addScaledVector(p,e.speed*.9*dt);}
-  else if(e.state==='flank'){const f=new THREE.Vector3(toP.x+e.strafeDir*toP.z*.8,0,toP.z-e.strafeDir*toP.x*.8).normalize();np=e.g.position.clone().addScaledVector(f,e.speed*1.1*dt);}
-  else np=e.g.position.clone().addScaledVector(toP.clone().negate(),e.speed*1.2*dt);
-  // apply wall collision for enemies
+  if(e.state==='chase')   np=e.g.position.clone().addScaledVector(toP,sp*(dist<8?1.3:1)*dt);
+  else if(e.state==='charge') np=e.g.position.clone().addScaledVector(toP,sp*2.2*dt);
+  else if(e.state==='strafe'){
+    const p=new THREE.Vector3(-toP.z,0,toP.x).multiplyScalar(e.strafeDir);
+    np=e.g.position.clone().addScaledVector(p,sp*.85*dt);
+    // drift slightly toward player while strafing
+    np.addScaledVector(toP,sp*.22*dt);
+  }
+  else if(e.state==='flank'){
+    const a=e.strafeDir*(diff==='hard'?.9:.7);
+    const f=new THREE.Vector3(toP.x+a*toP.z,0,toP.z-a*toP.x).normalize();
+    np=e.g.position.clone().addScaledVector(f,sp*(diff==='hard'?1.2:1.0)*dt);
+  }
+  else /* retreat */ np=e.g.position.clone().addScaledVector(toP.clone().negate(),sp*1.1*dt);
+
   np.x=Math.max(-lim,Math.min(lim,np.x));np.z=Math.max(-lim,Math.min(lim,np.z));
-  resolveCol(np, e.boss?0.7:0.45);
+  resolveCol(np,e.boss?0.7:0.45);
   e.g.position.copy(np);
   e.g.lookAt(new THREE.Vector3(cam.x,e.g.position.y,cam.z));
   e.g.position.y=Math.sin(tt*5+e.bob)*.04;
-  // Attack
-  const atkR=e.boss?2.3:1.7,atkRate=e.boss?.62:(diff==='hard'?.52:diff==='easy'?1.3:.88);
+
+  // ── Attack ──
+  const atkR=e.boss?2.3:1.7;
+  const atkRate=e.boss?0.55:D.atkRate;
   if(dist<atkR){
     e.attackT+=dt;
     e.g.children.forEach(ch=>{if(ch.isMesh&&ch.material&&ch.material.emissive){ch.material.emissive.setHex(0xff0000);ch.material.emissiveIntensity=3;}});
@@ -914,7 +1018,7 @@ function aiEnemy(e,dt,tt){
       setTimeout(()=>{if(e.alive)e.g.position.copy(orig);},90);
     }
   } else {
-    e.attackT=Math.max(0,e.attackT-.4*dt);
+    e.attackT=Math.max(0,e.attackT-.5*dt);
     e.g.children.forEach(ch=>{if(ch.isMesh&&ch.material&&ch.material.emissive){ch.material.emissive.setHex(0xffff00);ch.material.emissiveIntensity=2;}});
   }
 }
@@ -969,10 +1073,18 @@ function takeDmg(d){
 function startHB(){if(hbInt)return;hbInt=setInterval(()=>{if(!gameActive||paused)return;if(hp<=30&&hp>0)sfx('lowHp');else stopHB();},900);}
 function stopHB(){if(hbInt){clearInterval(hbInt);hbInt=null;}}
 function doMelee(){
+  const isMeleeWpn=CW.type==='melee';
+  const mDmg=isMeleeWpn?CW.dmg:65;
+  const mRange=isMeleeWpn?CW.meleeRange:2.0;
+  const mCd=isMeleeWpn?CW.meleeCd:0.72;
   if(!canMelee)return;canMelee=false;sfx('melee');
-  gunG.rotation.x=.6;setTimeout(()=>gunG.rotation.x=0,200);
-  enemies.forEach(e=>{if(!e.alive)return;const dx=camera.position.x-e.g.position.x,dz=camera.position.z-e.g.position.z;if(Math.sqrt(dx*dx+dz*dz)<2.3)hitEnemy(e,70);});
-  setTimeout(()=>canMelee=true,740);
+  gunG.rotation.x=.7;setTimeout(()=>gunG.rotation.x=0,Math.floor(mCd*600));
+  enemies.forEach(e=>{
+    if(!e.alive)return;
+    const dx=camera.position.x-e.g.position.x,dz=camera.position.z-e.g.position.z;
+    if(Math.sqrt(dx*dx+dz*dz)<mRange)hitEnemy(e,mDmg);
+  });
+  setTimeout(()=>canMelee=true,Math.floor(mCd*1000));
 }
 
 // ═══════════════════════════════
@@ -1111,8 +1223,13 @@ function updateHUD(){
 }
 function updateAmmoHUD(){
   $('wN').textContent=CW.name;
-  $('amD').innerHTML=`<span id="hAm">${ammo}</span>`;
-  $('hRs').textContent=reserve;
+  if(CW.type==='melee'){
+    $('amD').innerHTML=`<span style="font-size:22px">${CW.ico}</span>`;
+    $('hRs').textContent='∞';
+  } else {
+    $('amD').innerHTML=`<span id="hAm">${ammo}</span>`;
+    $('hRs').textContent=reserve;
+  }
 }
 function flashMsg(el,txt){
   el.textContent=txt;el.style.opacity=1;el.style.top='42%';el.style.transition='none';
@@ -1136,6 +1253,7 @@ document.addEventListener('keydown',e=>{
   if(e.code==='KeyF')doMelee();
   if(e.code==='KeyE')tryActivateCP();
   if(e.code==='KeyB')openTmpShop();
+  if(e.code==='KeyM'){$('mmWrap').classList.toggle('big');}
   if((e.code==='Space')&&isGrounded){doJump();e.preventDefault();}
   if(e.code==='Escape')togglePause();
 });
@@ -1229,49 +1347,165 @@ function closeTmpShop(){
 }
 function renderTmpShop(){
   $('ts_title').textContent=lang==='ar'?'🏪 متجر المعركة':'🏪 Battle Shop';
-  $('ts_sub').textContent=lang==='ar'?'أسلحة مؤقتة — تنتهي بنهاية المرحلة':'Temporary weapons — expires end of level';
+  $('ts_sub').textContent=lang==='ar'?'مؤقت — ينتهي بنهاية المرحلة':'Temporary — expires end of level';
   $('ts_bal_lbl').textContent=lang==='ar'?'كوينز الجلسة:':'Session coins:';
   $('ts_close_lbl').textContent=lang==='ar'?'إغلاق واستمرار':'Close & Continue';
   $('ts_coins').textContent=sesCoins;
   const g=$('ts_grid');g.innerHTML='';
-  WPNS.filter(w=>!w.perm).forEach(w=>{
+
+  function makeRow(titleAr,titleEn,col){
+    const d=document.createElement('div');
+    d.style.cssText='grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:10px 0 2px;';
+    d.innerHTML=`<div style="font-size:9px;letter-spacing:2px;color:${col};font-weight:700">${lang==='ar'?titleAr:titleEn}</div><div style="flex:1;height:1px;background:${col}44"></div>`;
+    g.appendChild(d);
+  }
+  function makeCard(w){
     const eq=CW.id===w.id;
     const canBuy=sesCoins>=w.price&&!eq;
     const d=document.createElement('div');
-    d.style.cssText='background:rgba(4,12,26,.95);border:1px solid '+(eq?'var(--c)':canBuy?'rgba(255,136,0,.3)':'rgba(255,255,255,.06)')+';border-radius:9px;padding:12px;position:relative;';
+    d.style.cssText='background:rgba(4,12,26,.95);border:1px solid '+(eq?'var(--c)':canBuy?'rgba(255,136,0,.35)':'rgba(255,255,255,.06)')+';border-radius:9px;padding:11px;';
     if(eq)d.style.boxShadow='0 0 8px rgba(0,255,204,.12)';
     const desc=lang==='ar'?w.desc_ar:w.desc_en;
-    const btnStyle=eq?'border-color:var(--c);background:rgba(0,255,204,.1);color:var(--c);cursor:default;':
-                   canBuy?'border-color:rgba(255,136,0,.4);background:rgba(255,136,0,.07);color:#ff8800;cursor:pointer;':
-                   'border-color:#1a1a1a;background:transparent;color:#333;cursor:not-allowed;';
-    const btnTxt=eq?(lang==='ar'?'✓ مجهز':'✓ Equipped'):
-                 canBuy?`${lang==='ar'?'استأجر':'Rent'} 💰${w.price}`:
-                 `💰${w.price}`;
+    const btnS=eq?'border-color:var(--c);background:rgba(0,255,204,.1);color:var(--c);cursor:default;':
+                canBuy?'border-color:rgba(255,136,0,.4);background:rgba(255,136,0,.07);color:#ff8800;cursor:pointer;':
+                'border-color:#1a1a1a;background:transparent;color:#333;cursor:not-allowed;';
+    const btnT=eq?(lang==='ar'?'✓ مجهز':'✓ Equipped'):
+               canBuy?`${lang==='ar'?'استأجر':'Rent'} 💰${w.price}`:`💰${w.price}`;
+    const s2lbl=w.type==='melee'?(lang==='ar'?'مدى':'RNG'):(lang==='ar'?'سرعة':'SPD');
+    const s2val=w.type==='melee'?Math.round((w.meleeRange/3)*100):w.sB;
     d.innerHTML=`<div style="font-size:20px;margin-bottom:3px">${w.ico}</div>
     <div style="font-size:10px;color:#ddd;margin-bottom:2px">${w.name}</div>
-    <div style="font-size:8px;color:#446;margin-bottom:6px;line-height:1.4">${desc}</div>
+    <div style="font-size:8px;color:#446;margin-bottom:5px;line-height:1.4">${desc}</div>
     <div style="display:flex;align-items:center;gap:3px;margin-bottom:2px"><span style="font-size:7px;color:#334;min-width:18px">${lang==='ar'?'ضرر':'DMG'}</span><div style="flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden"><div style="width:${w.dB}%;height:100%;background:var(--c);border-radius:2px"></div></div></div>
-    <div style="display:flex;align-items:center;gap:3px;margin-bottom:6px"><span style="font-size:7px;color:#334;min-width:18px">${lang==='ar'?'سرعة':'SPD'}</span><div style="flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden"><div style="width:${w.sB}%;height:100%;background:var(--g);border-radius:2px"></div></div></div>
-    <button onclick="rentWpn('${w.id}')" style="width:100%;padding:7px 2px;border-radius:4px;font-family:'Orbitron',monospace;font-size:9px;border:1px solid;transition:all .15s;${btnStyle}">${btnTxt}</button>`;
+    <div style="display:flex;align-items:center;gap:3px;margin-bottom:5px"><span style="font-size:7px;color:#334;min-width:18px">${s2lbl}</span><div style="flex:1;height:3px;background:rgba(255,255,255,.06);border-radius:2px;overflow:hidden"><div style="width:${s2val}%;height:100%;background:var(--g);border-radius:2px"></div></div></div>
+    <button onclick="rentWpn('${w.id}')" style="width:100%;padding:7px 2px;border-radius:4px;font-family:'Orbitron',monospace;font-size:9px;border:1px solid;transition:all .15s;${btnS}">${btnT}</button>`;
     g.appendChild(d);
-  });
+  }
+
+  makeRow('── 🔫 مسدسات صغيرة ──','── 🔫 SMALL PISTOLS ──','#aaccff');
+  WPNS.filter(w=>!w.perm&&w.type==='gun'&&w.size==='small').forEach(makeCard);
+  makeRow('── 🔩 أسلحة كبيرة ──','── 🔩 BIG FIREARMS ──','#ff8800');
+  WPNS.filter(w=>!w.perm&&w.type==='gun'&&w.size==='big').forEach(makeCard);
+  makeRow('── ⚔ السيوف والسكاكين ──','── ⚔ SWORDS & KNIVES ──','#ff4488');
+  WPNS.filter(w=>!w.perm&&w.type==='melee').forEach(makeCard);
 }
+
 window.rentWpn=function(id){
-  const w=WPNS.find(x=>x.id===id);if(!w||!w.perm===false)return;
-  if(sesCoins<w.price){return;}
-  // Unrent previous if any
-  if(tmpWpnId&&tmpWpnId!==id){/* clear */}
+  const w=WPNS.find(x=>x.id===id);
+  if(!w||w.perm)return;
+  if(sesCoins<w.price)return;
   sesCoins-=w.price;
   tmpWpnId=id;
-  CW=w;ammo=w.mag;reserve=w.res;reloading=false;
-  updateAmmoHUD();updateHUD();
+  equipToSlot(w);
+  updateHUD();
   $('ts_coins').textContent=sesCoins;
   renderTmpShop();
 };
-addTouch($('ts_close'),closeTmpShop);
-
 // ═══════════════════════════════
-// SHOP
+// LOADOUT SYSTEM (2 slots + scroll)
+// ═══════════════════════════════
+// slot[0] = small pistol or melee
+// slot[1] = big gun or melee
+// activeSlot = 0 or 1
+let loadout=[null,null]; // each = {wpn, ammo, reserve}
+let activeSlot=0;
+
+function isSmall(w){ return w&&(w.type==='melee'||(w.type==='gun'&&w.size==='small')); }
+function isBig(w){   return w&&(w.type==='gun'&&w.size==='big'); }
+
+// Build loadout from save at start of level
+function buildLoadout(){
+  // owned weapons this session (perm owned + rented)
+  const ownedIds=[...SV.ownedWpns];
+  if(tmpWpnId)ownedIds.push(tmpWpnId);
+  const wpns=ownedIds.map(id=>WPNS.find(w=>w.id===id)).filter(Boolean);
+
+  // slot 0: best small/melee owned
+  // slot 1: best big gun owned (by price desc)
+  const smalls=wpns.filter(w=>isSmall(w)).sort((a,b)=>b.price-a.price);
+  const bigs=wpns.filter(w=>isBig(w)).sort((a,b)=>b.price-a.price);
+
+  // prefer equipped weapon in its slot
+  const eq=WPNS.find(w=>w.id===SV.equippedWpn);
+  let s0=smalls[0]||null, s1=bigs[0]||null;
+  if(eq){ if(isSmall(eq))s0=eq; else if(isBig(eq))s1=eq; }
+
+  loadout[0]=s0?{wpn:s0,ammo:s0.type==='melee'?0:s0.mag,reserve:s0.type==='melee'?0:s0.res}:null;
+  loadout[1]=s1?{wpn:s1,ammo:s1.mag,reserve:s1.res}:null;
+  // default: equip slot1 (big) if exists, else slot0
+  activeSlot=loadout[1]?1:0;
+  applySlot();
+  renderSlotHUD();
+}
+
+function applySlot(){
+  const slot=loadout[activeSlot];
+  if(!slot){
+    // try other slot
+    const other=1-activeSlot;
+    if(loadout[other]){activeSlot=other;applySlot();return;}
+    return;
+  }
+  CW=slot.wpn;
+  ammo=slot.ammo;
+  reserve=slot.reserve;
+  reloading=false;
+  updateAmmoHUD();
+}
+
+function saveSlotAmmo(){
+  const slot=loadout[activeSlot];
+  if(slot){slot.ammo=ammo;slot.reserve=reserve;}
+}
+
+function switchSlot(dir){
+  if(!gameActive||paused)return;
+  saveSlotAmmo();
+  // cycle through available slots
+  const slots=[0,1].filter(i=>loadout[i]);
+  if(slots.length<2)return;
+  const cur=slots.indexOf(activeSlot);
+  activeSlot=slots[(cur+(dir>0?1:-1)+slots.length)%slots.length];
+  applySlot();
+  renderSlotHUD();
+}
+
+function renderSlotHUD(){
+  const g=$('wSlots');g.innerHTML='';
+  [0,1].forEach(i=>{
+    const slot=loadout[i];
+    if(!slot)return;
+    const d=document.createElement('div');
+    d.className='wslot'+(activeSlot===i?' active':'');
+    d.innerHTML=`<div class="wslot-num">${i+1}</div><div>${slot.wpn.ico}</div>`;
+    d.addEventListener('click',()=>{if(activeSlot!==i){saveSlotAmmo();activeSlot=i;applySlot();renderSlotHUD();}});
+    g.appendChild(d);
+  });
+}
+
+// Equip a weapon into correct slot (called when renting/equipping)
+function equipToSlot(w){
+  if(isSmall(w)){
+    loadout[0]={wpn:w,ammo:w.type==='melee'?0:w.mag,reserve:w.type==='melee'?0:w.res};
+  } else {
+    loadout[1]={wpn:w,ammo:w.mag,reserve:w.res};
+  }
+  activeSlot=isSmall(w)?0:1;
+  applySlot();renderSlotHUD();
+}
+
+// scroll wheel switch
+window.addEventListener('wheel',e=>{
+  if(!gameActive||paused)return;
+  switchSlot(e.deltaY>0?1:-1);
+},{passive:true});
+
+// 1/2 keys for direct slot pick
+document.addEventListener('keydown',e=>{
+  if(!gameActive||paused)return;
+  if(e.code==='Digit1'){saveSlotAmmo();if(loadout[0]){activeSlot=0;applySlot();renderSlotHUD();}}
+  if(e.code==='Digit2'){saveSlotAmmo();if(loadout[1]){activeSlot=1;applySlot();renderSlotHUD();}}
+});
 // ═══════════════════════════════
 function openShop(fromPause=false){
   $('shCoins').textContent=SV.coins;
@@ -1283,24 +1517,37 @@ function openShop(fromPause=false){
 function renderShop(){
   $('shCoins').textContent=SV.coins;
   const g=$('shGrid');g.innerHTML='';
-  WPNS.filter(w=>w.perm).forEach(w=>{
-    const owned=SV.ownedWpns.includes(w.id);
-    const eq=SV.equippedWpn===w.id;
-    const c=document.createElement('div');
-    c.className='wcard'+(owned?' owned':'')+(eq?' equipped':'')+((!owned&&SV.coins>=w.price)?' can-buy':'');
-    const badge=eq?`<span class="wbadge eq-badge">${t('equipped')}</span>`:owned?`<span class="wbadge own-badge">${lang==='ar'?'مملوك':'Owned'}</span>`:'';
-    let btn='';
-    if(eq)btn=`<button class="wbtn eq-btn">${t('equipped')}</button>`;
-    else if(owned)btn=`<button class="wbtn equip-btn" onclick="equipWpn('${w.id}')">${t('equip')}</button>`;
-    else if(SV.coins>=w.price)btn=`<button class="wbtn buy-btn" onclick="buyWpn('${w.id}')">${t('buy')} 💰${w.price}</button>`;
-    else btn=`<button class="wbtn no-btn">💰${w.price}</button>`;
-    const desc=lang==='ar'?w.desc_ar:w.desc_en;
-    c.innerHTML=`${badge}<div class="wico">${w.ico}</div><h4>${w.name}</h4><p class="wdesc">${desc}</p>
-    <div class="sbar"><span class="sbar-lbl">${lang==='ar'?'ضرر':'DMG'}</span><div class="sbar-t"><div class="sbar-f" style="width:${w.dB}%;background:var(--c)"></div></div></div>
-    <div class="sbar"><span class="sbar-lbl">${lang==='ar'?'سرعة':'SPD'}</span><div class="sbar-t"><div class="sbar-f" style="width:${w.sB}%;background:var(--g)"></div></div></div>
-    ${btn}`;
-    g.appendChild(c);
-  });
+
+  function makeSection(titleAr,titleEn,color,items){
+    const sec=document.createElement('div');
+    sec.style.cssText='grid-column:1/-1;display:flex;align-items:center;gap:8px;margin:10px 0 4px;';
+    sec.innerHTML=`<div style="font-size:9px;letter-spacing:2px;color:${color};font-weight:700">${lang==='ar'?titleAr:titleEn}</div><div style="flex:1;height:1px;background:${color}44"></div>`;
+    g.appendChild(sec);
+    items.forEach(w=>{
+      const owned=SV.ownedWpns.includes(w.id);
+      const eq=SV.equippedWpn===w.id;
+      const c=document.createElement('div');
+      c.className='wcard'+(owned?' owned':'')+(eq?' equipped':'')+((!owned&&SV.coins>=w.price)?' can-buy':'');
+      const badge=eq?`<span class="wbadge eq-badge">${t('equipped')}</span>`:owned?`<span class="wbadge own-badge">${lang==='ar'?'مملوك':'Owned'}</span>`:'';
+      let btn='';
+      if(eq)btn=`<button class="wbtn eq-btn">${t('equipped')}</button>`;
+      else if(owned)btn=`<button class="wbtn equip-btn" onclick="equipWpn('${w.id}')">${t('equip')}</button>`;
+      else if(SV.coins>=w.price)btn=`<button class="wbtn buy-btn" onclick="buyWpn('${w.id}')">${t('buy')} 💰${w.price}</button>`;
+      else btn=`<button class="wbtn no-btn">💰${w.price}</button>`;
+      const desc=lang==='ar'?w.desc_ar:w.desc_en;
+      const stat2lbl=w.type==='melee'?(lang==='ar'?'مدى':'RNG'):(lang==='ar'?'سرعة':'SPD');
+      const stat2val=w.type==='melee'?Math.round((w.meleeRange/3)*100):w.sB;
+      c.innerHTML=`${badge}<div class="wico">${w.ico}</div><h4>${w.name}</h4><p class="wdesc">${desc}</p>
+      <div class="sbar"><span class="sbar-lbl">${lang==='ar'?'ضرر':'DMG'}</span><div class="sbar-t"><div class="sbar-f" style="width:${w.dB}%;background:${color}"></div></div></div>
+      <div class="sbar"><span class="sbar-lbl">${stat2lbl}</span><div class="sbar-t"><div class="sbar-f" style="width:${stat2val}%;background:var(--g)"></div></div></div>
+      ${btn}`;
+      g.appendChild(c);
+    });
+  }
+
+  makeSection('── 🔫 مسدسات صغيرة ──','── 🔫 SMALL PISTOLS ──','#aaccff',WPNS.filter(w=>w.perm&&w.type==='gun'&&w.size==='small'));
+  makeSection('── 🔩 أسلحة كبيرة ──','── 🔩 BIG FIREARMS ──','var(--c)',WPNS.filter(w=>w.perm&&w.type==='gun'&&w.size==='big'));
+  makeSection('── ⚔ السيوف والسكاكين ──','── ⚔ SWORDS & KNIVES ──','#ff8844',WPNS.filter(w=>w.perm&&w.type==='melee'));
 }
 window.buyWpn=function(id){
   const w=WPNS.find(x=>x.id===id);if(!w)return;
@@ -1314,7 +1561,8 @@ window.buyWpn=function(id){
 window.equipWpn=function(id){
   if(!SV.ownedWpns.includes(id))return;
   SV.equippedWpn=id;
-  CW=getCW();ammo=CW.mag;reserve=CW.res;reloading=false;
+  const w=WPNS.find(x=>x.id===id);
+  if(w&&gameActive) equipToSlot(w);
   save2();updateAmmoHUD();renderShop();
 };
 
@@ -1351,7 +1599,7 @@ function startLevel(idx){
   const L=LEVELS[idx];
   // Reset session state
   tmpWpnId=null; // clear temp weapon each level
-  CW=getCW();ammo=CW.mag;reserve=CW.res;reloading=false;
+  buildLoadout(); // sets CW, ammo, reserve, slot HUD
   hp=100;armor=0;score=0;kills=0;sesCoins=0;
   objK=0;objKGoal=L.killGoal;objCP=0;objCPGoal=L.cpCount;
   objKDone=false;objCPDone=false;nearCP=-1;cpAct=-1;cpProg=0;
@@ -1541,6 +1789,8 @@ addTouch($('nextBtn'),()=>{showScreen(null);startLevel(curLvl+1);});
 addTouch($('eLvlBtn'),()=>{renderLvls();showScreen('lsS');});
 addTouch($('eMenuBtn'),()=>{showScreen('mS');refreshMenu();});
 addTouch($('winMenuBtn'),()=>{showScreen('mS');refreshMenu();});
+// Minimap toggle click
+$('mmWrap').addEventListener('click',()=>$('mmWrap').classList.toggle('big'));
 
 window.addEventListener('resize',()=>{
   renderer.setSize(innerWidth,innerHeight);
